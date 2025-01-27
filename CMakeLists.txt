@@ -96,15 +96,6 @@ set(procdump_ebpf_SOURCE_DIR ${CMAKE_SOURCE_DIR}/ebpf)
 set(sym_SOURCE_DIR ${CMAKE_SOURCE_DIR}/sym)
 
 #
-# Configure files
-#
-configure_file(${procdump_INC}/ProcDumpVersion.h.in ${PROJECT_BINARY_DIR}/ProcDumpVersion.h)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  configure_file(dist/DEBIAN.in/control.in DEBIANcontrol)
-  configure_file(dist/SPECS.in/spec.in SPECS.spec)
-endif()
-
-#
 # Compiler
 #
 set(CMAKE_CXX_COMPILER "clang++")
@@ -117,6 +108,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   # Figure out which architecture we are building for
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
     set(CLRHOSTDEF -DHOST_AMD64 -DHOST_64BIT)
+    set(ARCHITECTURE "amd64")
   elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL x86 OR CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
     set(CLRHOSTDEF -DHOST_X86)
   elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL armv6 OR CMAKE_SYSTEM_PROCESSOR STREQUAL armv6l)
@@ -125,6 +117,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set(CLRHOSTDEF -DHOST_ARM)
   elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
     set(CLRHOSTDEF -DHOST_ARM64 -DHOST_64BIT)
+    set(ARCHITECTURE "arm64")
   elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL loongarch64)
     set(CLRHOSTDEF -DHOST_LOONGARCH64 -DHOST_64BIT)
   elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL riscv64)
@@ -156,11 +149,26 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
                             /usr/include
                             )
 
+  if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    target_include_directories(ProcDumpProfiler PUBLIC
+                               /usr/include/aarch64-linux-gnu
+                              )
+  endif()
+
   add_custom_command(OUTPUT ProcDumpProfiler.o
                     COMMAND "${LD}" -r -b binary -o "${PROJECT_BINARY_DIR}/ProcDumpProfiler.o" ProcDumpProfiler.so
                     COMMENT "Packing ProcDumpProfiler.so into ProcDumpProfiler.o"
                     DEPENDS ProcDumpProfiler
                     )
+endif()
+
+#
+# Configure files
+#
+configure_file(${procdump_INC}/ProcDumpVersion.h.in ${PROJECT_BINARY_DIR}/ProcDumpVersion.h)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  configure_file(dist/DEBIAN.in/control.in DEBIANcontrol)
+  configure_file(dist/SPECS.in/spec.in SPECS.spec)
 endif()
 
 #
@@ -225,6 +233,14 @@ target_include_directories(procdump PUBLIC
                            ${sym_SOURCE_DIR}
                            ${procdump_ebpf_SOURCE_DIR}
                           )
+
+if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  message(STATUS "Adding include path for aarch64: /usr/include/aarch64-linux-gnu")
+  target_include_directories(procdump PUBLIC
+                             /usr/include/aarch64-linux-gnu
+                            )
+endif()
+
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   add_dependencies(procdump libbpf procdump_ebpf)
   target_link_libraries(procdump ${libbpf_SOURCE_DIR}/src/libbpf.a elf z pthread)
@@ -260,8 +276,9 @@ target_link_libraries(ProcDumpTestApplication pthread)
 # Make package(s)
 #
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  message("Architecture: ${ARCHITECTURE}")
   add_custom_target(deb
-                  COMMAND "${CMAKE_SOURCE_DIR}/makePackages.sh" "${CMAKE_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${PACKAGE_NAME}" "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}" "0" "deb"
+                  COMMAND "${CMAKE_SOURCE_DIR}/makePackages.sh" "${CMAKE_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${PACKAGE_NAME}" "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}" "0" "deb" "${ARCHITECTURE}"
                   DEPENDS "${CMAKE_SOURCE_DIR}/dist" "${PROJECT_BINARY_DIR}/procdump"
                   )
 
@@ -306,9 +323,17 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
                     )
   set(CLANG_DEFINES -D __KERNEL__
                     -D __BPF_TRACING__
-                    -D __TARGET_ARCH_x86
                     -D __linux__
                     )
+
+  if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    list(APPEND CLANG_DEFINES -D __TARGET_ARCH_arm64)
+  endif()
+
+  if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    list(APPEND CLANG_DEFINES -D __TARGET_ARCH_x86)
+  endif()
+
   if (DEBUG_K)
       message("Using DEBUG_K Option...")
       list(APPEND CLANG_DEFINES -DDEBUG_K)
@@ -316,11 +341,19 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
   set(CLANG_INCLUDES
                     -I "/usr/include"
-                    -I "/usr/include/x86_64-linux-gnu"
+                    #-I "/usr/include/x86_64-linux-gnu"
                     -I "${CMAKE_SOURCE_DIR}"
                     -I "${CMAKE_BINARY_DIR}"
                     -I "${libbpf_SOURCE_DIR}/src"
                     )
+
+  if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  list(APPEND CLANG_INCLUDES -I "/usr/include/aarch64-linux-gnu")
+  endif()
+
+  if(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    list(APPEND CLANG_INCLUDES -I "/usr/include/x86_64-linux-gnu")
+  endif()
 
   add_custom_target(procdump_ebpf
                     DEPENDS procdump_ebpf.o
