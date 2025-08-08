@@ -1,10 +1,19 @@
-FROM mcr.microsoft.com/mirror/docker/library/ubuntu:20.04
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:22.04
 
 # To make it easier for build and release pipelines to run apt-get,
 # configure apt to not require confirmation (assume the -y argument by default)
-ENV DEBIAN_FRONTEND=noninteractive
+RUN DEBIAN_FRONTEND=noninteractive apt -y update && apt install rsyslog -y
+RUN rm -f /run/rsyslogd.pid
+RUN service rsyslog start || true
+
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" sudo
 
 # Install dependencies
 COPY install-ubuntu-dependencies.sh /usr/local/bin/install_dependencies.sh
+
+# Fix line endings (convert Windows CRLF to Unix LF) and make executable
+RUN sed -i 's/\r$//' /usr/local/bin/install_dependencies.sh
+
 RUN chmod +x /usr/local/bin/install_dependencies.sh && \
     /usr/local/bin/install_dependencies.sh

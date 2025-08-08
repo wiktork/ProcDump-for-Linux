@@ -547,14 +547,14 @@ char* GetSocketPath(char* prefix, pid_t pid, pid_t targetPid)
         }
         else
         {
-            int len = snprintf(NULL, 0, "/tmp/%s%d", prefix, pid);
+            int len = snprintf(NULL, 0, "/tmp/%s%d-", prefix, pid);
             t = (char*) malloc(len+1);
             if(t==NULL)
             {
                 return NULL;
             }
 
-            snprintf(t, len+1, "/tmp/%s%d", prefix, pid);
+            snprintf(t, len+1, "/tmp/%s%d-", prefix, pid);
         }
     }
     else
@@ -572,14 +572,14 @@ char* GetSocketPath(char* prefix, pid_t pid, pid_t targetPid)
         }
         else
         {
-            int len = snprintf(NULL, 0, "%s/%s%d", prefixTmpFolder, prefix, pid);
+            int len = snprintf(NULL, 0, "%s/%s%d-", prefixTmpFolder, prefix, pid);
             t = (char*) malloc(len+1);
             if(t==NULL)
             {
                 return NULL;
             }
 
-            snprintf(t, len+1, "%s/%s%d", prefixTmpFolder, prefix, pid);
+            snprintf(t, len+1, "%s/%s%d-", prefixTmpFolder, prefix, pid);
         }
     }
 

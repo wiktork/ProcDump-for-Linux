@@ -33,6 +33,7 @@ apt upgrade -y \
     libbpf-dev \
     sudo
 
+
 # Build and install bpftool
 rm -rf /usr/sbin/bpftool
 git clone --recurse-submodules https://github.com/libbpf/bpftool.git
@@ -44,7 +45,12 @@ ln -s /usr/local/sbin/bpftool /usr/sbin/bpftool
 wget https://github.com/debbuild/debbuild/releases/download/22.02.1/debbuild_22.02.1-0ubuntu20.04_all.deb \
     && dpkg -i debbuild_22.02.1-0ubuntu20.04_all.deb
 
+wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+dpkg -i packages-microsoft-prod.deb
+rm packages-microsoft-prod.deb
+
 arch=$(uname -m)
+
 if [[ "$arch" == "aarch64" ]]; then
     wget https://dot.net/v1/dotnet-install.sh 
     chmod +x dotnet-install.sh

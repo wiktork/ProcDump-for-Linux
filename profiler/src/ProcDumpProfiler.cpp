@@ -1573,13 +1573,13 @@ char* CorProfiler::GetSocketPath(char* prefix, pid_t pid, pid_t targetPid)
     }
     else
     {
-        int len = snprintf(NULL, 0, "%s/%s%d", prefixTmpFolder, prefix, pid);
+        int len = snprintf(NULL, 0, "%s/%s%d-", prefixTmpFolder, prefix, pid);
         t = new char[len+1];
         if(t==NULL)
         {
             return NULL;
         }
-        snprintf(t, len+1, "%s/%s%d", prefixTmpFolder, prefix, pid);
+        snprintf(t, len+1, "%s/%s%d-", prefixTmpFolder, prefix, pid);
     }
 
     LOG(TRACE) << "CorProfiler::GetSocketPath: Exit";
